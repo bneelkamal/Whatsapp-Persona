@@ -209,7 +209,7 @@ if selected_username != select_prompt:
                                 # Display errorrobustly without using help on st.error
                                 st.caption(f"{badge_name} (Img Err)")
                                 print(f"DEBUG: Failed to load image for badge '{badge_name}': {img_e}")
-                    else:
+                    else:           
                          # Handle badge name present but no metadata found
                          with cols[col_num]:
                               st.caption(f"{badge_name}")
