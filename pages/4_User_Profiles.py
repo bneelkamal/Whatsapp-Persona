@@ -197,26 +197,32 @@ if selected_username != select_prompt:
 
                     if badge_info:
                          with cols[col_num]:
-                            try:
-                                # Use st.image with caption and tooltip (help)
-                                st.image(
-                                    badge_info.get('image_url', ''),
-                                    caption=badge_name,
-                                    help=badge_info.get('description', 'No description available.'),
-                                    width=80 # Adjust size as needed
-                                )
-                            except Exception as img_e:
-                                # Display errorrobustly without using help on st.error
-                                st.caption(f"{badge_name} (Img Err)")
-                                print(f"DEBUG: Failed to load image for badge '{badge_name}': {img_e}")
+                                try:
+                                    # --- !!! REMOVE help=... FROM st.image !!! ---
+                                    st.image(
+                                        badge_info.get('image_url', ''),
+                                        caption=badge_name,
+                                        # help=badge_info.get('description', 'No description available.'), # <-- REMOVE THIS ARGUMENT
+                                        width=80 # Adjust size as needed
+                                    )
+                                except Exception as img_e:
+                                    badge_name_for_error = badge_info.get('name', badge_name)
+                                    failed_url = badge_info.get('image_url', 'URL_MISSING_IN_METADATA')
+                                    st.caption(f"{badge_name_for_error} (Image Error)")
+                                    # Print detailed info to logs
+                                    print(f"--- ERROR loading image ---")
+                                    # ... (keep detailed logging print statements) ...
+                                    print(f"DEBUG: Failed to load image for badge '{badge_name}': {img_e}")
+                                    print(f"---------------------------")
+                                
                     else:           
                          # Handle badge name present but no metadata found
                          with cols[col_num]:
-                              st.caption(f"{badge_name}")
-                              st.error("❓", help=f"Metadata missing for {badge_name}") # st.error does not take 'help' - remove it
-                              # Corrected error display:
-                              # st.caption(f"{badge_name} (Def Missing)")
-                              # st.error("❓") # Or just use caption
+                          st.caption(f"{badge_name}")
+                          # --- !!! Ensure st.error here also has NO help argument !!! ---
+                          # st.error("❓", help=f"Metadata missing for {badge_name}") # Incorrect
+                          st.error("❓ Definition Missing") # Correct - message only
+
                     badge_idx += 1
                 else:
                     # Optionally add empty placeholders to keep alignment, or just pass
