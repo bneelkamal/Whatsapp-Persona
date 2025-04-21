@@ -14,4 +14,3 @@ emoji
 # Database connectivity (for SQLite via standard lib, added for Supabase/Postgres)
 SQLAlchemy
 psycopg2-binary
-traceback
