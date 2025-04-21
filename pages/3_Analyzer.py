@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import traceback # For detailed error printing if needed
+from datetime import datetime # Import datetime for logging/debugging
 
 # --- Import shared functions/constants ---
 # Assumes utils.py is in the parent directory or accessible via Python path
@@ -23,24 +24,29 @@ except ImportError as e:
     DB_PATH = "chat_data.db" # Default fallback path
 
 # --- Page Configuration ---
-st.set_page_config(page_title="Chat Analyzer", layout="wide") # Config specific to this page
-st.subheader("📊 Analyzer - User Features and Badges")
+st.set_page_config(page_title="Chat Analyzer (Local)", layout="wide") # Config specific to this page
+st.subheader("📊 Analyzer - User Features and Badges (Local Upload)")
 
 # --- Main Analysis Section ---
 # Use a unique key for the button
-if st.button("Run Analysis", key="analyzer_run_button"):
+if st.button("Run Analysis on Uploaded Data", key="analyzer_run_button"):
     if not utils_import_success:
         st.error("Cannot run analysis because essential functions could not be imported from utils.py.", icon="❌")
         st.stop() # Stop execution if utils aren't loaded
 
     analysis_done = False # Flag to track if analysis steps completed
-    with st.spinner("Extracting features... This might take a moment..."):
-        # Pass DB_PATH explicitly for clarity
-        features = extract_features(db_path=DB_PATH)
+    with st.spinner("Extracting features from local DB... This might take a moment..."):
+        # Specify SQLite type and connection info (path)
+        # Ensure DB_PATH is correctly pointing to your local DB file name
+        features = extract_features(db_type='sqlite', connection_info=DB_PATH)
 
     if features is None or features.empty:
-        st.warning("Could not extract features. Have you uploaded data, and does it contain user messages?", icon="⚠️")
+        st.warning("Could not extract features from local DB. Have you uploaded data via Page 1?", icon="⚠️")
         st.session_state['analysis_run_success'] = False
+        # Clear session state if features are empty to avoid stale data
+        if 'features_with_badges_sqlite' in st.session_state:
+            del st.session_state['features_with_badges_sqlite']
+            print(f"[{datetime.now()}] Cleared session state 'features_with_badges_sqlite' due to empty features.")
     else:
         st.session_state['analysis_run_success'] = True
         st.success("Feature extraction complete!", icon="✅")
@@ -52,23 +58,18 @@ if st.button("Run Analysis", key="analyzer_run_button"):
             display_features = features.copy()
             # Formatting logic for display
             for col in numeric_cols:
-                # Check if column exists before formatting (safety measure)
-                if col not in display_features.columns:
-                    continue
-                # Handle potential all-NaN columns gracefully
+                if col not in display_features.columns: continue
                 if display_features[col].isnull().all():
-                    display_features[col] = "N/A"
-                    continue
-                # Apply formatting based on type
+                    display_features[col] = "N/A"; continue
                 if display_features[col].isnull().any():
                     display_features[col] = display_features[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
                 else:
                     if pd.api.types.is_integer_dtype(features[col].dropna()):
-                        display_features[col] = display_features[col].map('{:,.0f}'.format) # Add comma formatting
+                        display_features[col] = display_features[col].map('{:,.0f}'.format)
                     else:
                         display_features[col] = display_features[col].map('{:.2f}'.format)
 
-            # Display the formatted features table (Corrected Indentation)
+            # Display the formatted features table
             st.dataframe(display_features.set_index('sender'), use_container_width=True)
 
         except Exception as e:
@@ -98,18 +99,31 @@ if st.button("Run Analysis", key="analyzer_run_button"):
                 st.warning("No 'badges' column found after assignment. Creating empty 'badges_str'.", icon="❓")
                 features_with_badges['badges_str'] = '---' # Ensure column exists
 
+            # --- !!! SAVE TO SESSION STATE !!! ---
+            try:
+                # Store a copy of the processed DataFrame in session state
+                st.session_state['features_with_badges_sqlite'] = features_with_badges.copy()
+                st.success("Analysis results saved for profile view.", icon="💾")
+                print(f"[{datetime.now()}] Saved 'features_with_badges_sqlite' to session state.") # Debug log
+            except Exception as session_e:
+                 st.error(f"Failed to save results to session state: {session_e}", icon="⚠️")
+                 # Clear state if saving failed
+                 if 'features_with_badges_sqlite' in st.session_state:
+                     del st.session_state['features_with_badges_sqlite']
+            # --- End of saving ---
+
             # --- Display Earned Badges Table ---
             st.write("---")
             st.write("#### ✨ User Badges Earned:")
             try:
                 if 'sender' in features_with_badges.columns and 'badges_str' in features_with_badges.columns:
-                    # Select and display sender and badges_str, setting index
                     badges_display_for_table = features_with_badges[['sender', 'badges_str']].set_index('sender')
                     st.dataframe(badges_display_for_table, use_container_width=True)
                 else:
                     st.info("Could not display earned badges (missing 'sender' or 'badges_str' column).")
             except Exception as e:
                  st.error(f"Error displaying earned badges table: {e}", icon="⚠️")
+
 
             # --- Visualizations ---
             st.write("---")
@@ -170,8 +184,13 @@ if st.button("Run Analysis", key="analyzer_run_button"):
                 st.error(f"Could not generate scatter plot: {e}", icon="📊")
                 print(traceback.format_exc()) # Log detailed error
 
-        else: # Handle case where features_with_badges itself is None
+        else: # Handle case where features_with_badges itself is None after assignment attempt
              st.error("Failed to proceed after badge assignment.", icon="❌")
+             # Clear session state if badge assignment failed
+             if 'features_with_badges_sqlite' in st.session_state:
+                 del st.session_state['features_with_badges_sqlite']
+                 print(f"[{datetime.now()}] Cleared session state 'features_with_badges_sqlite' due to badge assignment failure.")
+
 
         analysis_done = True # Mark analysis as completed
 
@@ -180,7 +199,7 @@ if st.button("Run Analysis", key="analyzer_run_button"):
 
 # Show initial message only if button hasn't been clicked successfully yet
 if not st.session_state.get('analysis_run_success', False):
-    st.info("Click the 'Run Analysis' button above to generate features, badges, and visualizations for the uploaded chat data.")
+    st.info("Click the 'Run Analysis' button above to generate features, badges, and visualizations for the locally uploaded chat data.")
 
 
 # --- Badge Legend Section (Always Visible if Metadata Available) ---
