@@ -89,29 +89,51 @@ if st.button("Run Analysis on Uploaded Data", key="analyzer_run_button"):
                  print(traceback.format_exc())
 
 
+                 
+
+
         if features_with_badges is not None:
-            # --- Create badges_str column ---
+
+            # pages/3_Analyzer.py
+# ... inside the 'if features_with_badges is not None:' block ...
+
+        # --- Create badges_str column ---
             if 'badges' in features_with_badges.columns:
                 features_with_badges['badges_str'] = features_with_badges['badges'].apply(
                     lambda x: ', '.join(x) if (x and isinstance(x, list) and len(x)>0) else '---'
                 )
             else:
-                st.warning("No 'badges' column found after assignment. Creating empty 'badges_str'.", icon="❓")
-                features_with_badges['badges_str'] = '---' # Ensure column exists
+                features_with_badges['badges_str'] = '---'
 
-            # --- !!! SAVE TO SESSION STATE !!! ---
+            # --- !!! FIX DATA TYPES BEFORE SAVING !!! ---
             try:
-                # Store a copy of the processed DataFrame in session state
-                st.session_state['features_with_badges_sqlite'] = features_with_badges.copy()
+                # Columns derived from summing booleans might end up as object/bool if NaNs were involved before fillna(0)
+                bool_sum_cols = ['question_msgs', 'deleted_msgs', 'text_msgs', 'media_msgs'] # Add others if needed
+                for col in bool_sum_cols:
+                    if col in features_with_badges.columns:
+                        # Fill any remaining NaNs with 0 and cast to integer
+                        features_with_badges[col] = features_with_badges[col].fillna(0).astype(int)
+                print(f"[{datetime.now()}] Ensured integer types for columns: {bool_sum_cols}")
+            except Exception as e:
+                st.error(f"Error fixing data types before saving state: {e}", icon="⚠️")
+            # --- End of data type fix ---
+
+
+            # --- SAVE TO SESSION STATE ---
+            try:
+                st.session_state['features_with_badges_sqlite'] = features_with_badges.copy() # Save a copy
                 st.success("Analysis results saved for profile view.", icon="💾")
                 print(f"[{datetime.now()}] Saved 'features_with_badges_sqlite' to session state.") # Debug log
             except Exception as session_e:
-                 st.error(f"Failed to save results to session state: {session_e}", icon="⚠️")
-                 # Clear state if saving failed
-                 if 'features_with_badges_sqlite' in st.session_state:
-                     del st.session_state['features_with_badges_sqlite']
+                st.error(f"Failed to save results to session state: {session_e}", icon="⚠️")
+                if 'features_with_badges_sqlite' in st.session_state:
+                    del st.session_state['features_with_badges_sqlite']
             # --- End of saving ---
 
+            # ... rest of display logic for Analyzer page ...
+
+
+            
             # --- Display Earned Badges Table ---
             st.write("---")
             st.write("#### ✨ User Badges Earned:")
