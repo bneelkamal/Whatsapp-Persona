@@ -1,1 +1,16 @@
+# Core Streamlit framework
+streamlit
 
+# Data manipulation
+pandas
+numpy
+
+# Plotting
+plotly
+
+# Emoji handling (used in feature extraction)
+emoji
+
+# Database connectivity (for SQLite via standard lib, added for Supabase/Postgres)
+SQLAlchemy
+psycopg2-binary
