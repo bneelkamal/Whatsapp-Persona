@@ -15,4 +15,3 @@ emoji
 SQLAlchemy
 psycopg2-binary
 traceback
-datetime
